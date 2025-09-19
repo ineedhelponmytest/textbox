@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Textbox</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: auto; padding: 20px; background: #fafafa; }
+    h1 { text-align: center; }
+    textarea, input { width: 100%; padding: 10px; margin: 5px 0; }
+    button { margin-top: 5px; padding: 6px 10px; cursor: pointer; }
+    .post { border: 1px solid #ccc; padding: 10px; margin-top: 10px; border-radius: 5px; background: white; }
+    .likes { font-size: 0.9em; color: gray; }
+    .section-title { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>Textbox</h1>
+
+  <!-- Signup/Login -->
+  <div id="auth">
+    <h3>Signup</h3>
+    <input id="signupUser" placeholder="Username">
+    <input id="signupPass" type="password" placeholder="Password">
+    <button onclick="signup()">Signup</button>
+
+    <h3>Login</h3>
+    <input id="loginUser" placeholder="Username">
+    <input id="loginPass" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Posting -->
+  <div id="posting" style="display:none;">
+    <textarea id="postInput" placeholder="Write something..."></textarea>
+    <button onclick="submitPost()">Post</button>
+  </div>
+
+  <!-- Feeds -->
+  <h2 class="section-title">Recent</h2>
+  <div id="recent"></div>
+
+  <h2 class="section-title">Trending</h2>
+  <div id="trending"></div>
+
+  <h2 class="section-title">Following</h2>
+  <div id="following"></div>
+
+  <script>
+    let loggedIn = false;
+    let currentUser = null;
+
+    async function signup() {
+      const username = document.getElementById("signupUser").value;
+      const password = document.getElementById("signupPass").value;
+      const res = await fetch('/api/signup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      alert(await res.text());
+    }
+
+    async function login() {
+      const username = document.getElementById("loginUser").value;
+      const password = document.getElementById("loginPass").value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      if (res.ok) {
+        loggedIn = true;
+        currentUser = username;
+        document.getElementById("posting").style.display = "block";
+        alert("Logged in!");
+      } else {
+        alert("Login failed");
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      loggedIn = false;
+      currentUser = null;
+      document.getElementById("posting").style.display = "none";
+      alert("Logged out");
+    }
+
+    async function fetchPosts() {
+      const res = await fetch('/api/posts');
+      const posts = await res.json();
+      const container = document.getElementById('recent');
+      container.innerHTML = '';
+      posts.forEach(p => {
+        const btnText = p.user_liked ? "Unlike" : "Like";
+        const followText = p.user_following ? "Unfollow" : "Follow";
+        const followButton = (loggedIn && p.author !== currentUser) ? 
+          `<button onclick="toggleFollow(${p.author_id}, this)">${followText}</button>` : "";
+        container.innerHTML += `
+          <div class="post">
+            <p><strong>${p.author}</strong> ${followButton}: ${p.content}</p>
+            <span class="likes">${p.likes} likes</span>
+            ${loggedIn ? `<button onclick="likePost(${p.id}, this)">${btnText}</button>` : ""}
+          </div>`;
+      });
+    }
+
+    async function fetchTrending() {
+      const res = await fetch('/api/trending');
+      const posts = await res.json();
+      const container = document.getElementById('trending');
+      container.innerHTML = '';
+      posts.forEach(p => {
+        const btnText = p.user_liked ? "Unlike" : "Like";
+        const followText = p.user_following ? "Unfollow" : "Follow";
+        const followButton = (loggedIn && p.author !== currentUser) ? 
+          `<button onclick="toggleFollow(${p.author_id}, this)">${followText}</button>` : "";
+        container.innerHTML += `
+          <div class="post">
+            <p><strong>${p.author}</strong> ${followButton}: ${p.content}</p>
+            <span class="likes">${p.likes} likes</span>
+            ${loggedIn ? `<button onclick="likePost(${p.id}, this)">${btnText}</button>` : ""}
+          </div>`;
+      });
+    }
+
+    async function fetchFollowing() {
+      if (!loggedIn) return;
+      const res = await fetch("/api/posts/following");
+      const posts = await res.json();
+      const container = document.getElementById("following");
+      container.innerHTML = '';
+      posts.forEach(p => {
+        const btnText = p.user_liked ? "Unlike" : "Like";
+        container.innerHTML += `
+          <div class="post">
+            <p><strong>${p.author}</strong>: ${p.content}</p>
+            <span class="likes">${p.likes} likes</span>
+            <button onclick="likePost(${p.id}, this)">${btnText}</button>
+          </div>`;
+      });
+    }
+
+    async function submitPost() {
+      const content = document.getElementById('postInput').value;
+      if (!content.trim()) return;
+      await fetch('/api/posts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content})
+      });
+      document.getElementById('postInput').value = '';
+      fetchPosts();
+      fetchTrending();
+      fetchFollowing();
+    }
+
+    async function likePost(id, btn) {
+      const res = await fetch(`/api/posts/${id}/like`, { method: 'POST' });
+      const data = await res.json();
+      btn.innerText = data.liked ? "Unlike" : "Like";
+      fetchPosts();
+      fetchTrending();
+      fetchFollowing();
+    }
+
+    async function toggleFollow(userId, btn) {
+      const res = await fetch(`/api/follow/${userId}`, { method: 'POST' });
+      const data = await res.json();
+      btn.innerText = data.following ? "Unfollow" : "Follow";
+      fetchPosts();
+      fetchTrending();
+      fetchFollowing();
+    }
+
+    fetchPosts();
+    fetchTrending();
+    fetchFollowing();
+    setInterval(() => { fetchPosts(); fetchTrending(); fetchFollowing(); }, 10000);
+  </script>
+</body>
+</html>
