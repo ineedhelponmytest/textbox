@@ -12,10 +12,8 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev_secret")
 # --- Database Setup ---
 db_url = os.environ.get("DATABASE_URL")
 if not db_url:
-    # fallback to local SQLite for testing
-    db_url = "sqlite:///textbox.db"
+    db_url = "sqlite:///textbox.db"  # local testing fallback
 elif db_url.startswith("postgres://"):
-    # SQLAlchemy requires postgresql://, not postgres://
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
@@ -64,15 +62,13 @@ def clean_content(text):
         text = re.sub(re.escape(word), "****", text, flags=re.IGNORECASE)
     return text
 
-# --- Helper to serialize posts ---
+# --- Serialize posts ---
 def serialize_post(post):
     user_liked = False
     user_following = False
     if current_user.is_authenticated:
         user_liked = Like.query.filter_by(user_id=current_user.id, post_id=post.id).first() is not None
-        author_id = post.user_id
-        if author_id:
-            user_following = Follow.query.filter_by(follower_id=current_user.id, followed_id=author_id).first() is not None
+        user_following = Follow.query.filter_by(follower_id=current_user.id, followed_id=post.user_id).first() is not None
     author = User.query.get(post.user_id).username if post.user_id else "anon"
     return {
         "id": post.id,
@@ -188,7 +184,7 @@ def toggle_follow(user_id):
 if __name__ == "__main__":
     with app.app_context():
         try:
-            db.create_all()  # Auto-create tables
+            db.create_all()
             print("✅ Database tables created successfully")
         except Exception as e:
             print("❌ Error creating tables:", e)
