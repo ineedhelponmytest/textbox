@@ -1,0 +1,19 @@
+databases:
+  - name: textbox-db
+    databaseName: textbox
+    user: textbox_user
+
+services:
+  - type: web
+    name: textbox
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        value: "your_secret_key_here"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: textbox-db
+          property: connectionString
