@@ -183,9 +183,7 @@ def toggle_follow(user_id):
 # --- Startup ---
 if __name__ == "__main__":
     with app.app_context():
-        try:
-            db.create_all()
-            print("✅ Database tables created successfully")
-        except Exception as e:
-            print("❌ Error creating tables:", e)
+        db.create_all()  # ✅ this creates all tables
     app.run(host="0.0.0.0", port=5000)
+
+
