@@ -1,4 +1,5 @@
-import os, re
+import os
+import re
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -9,9 +10,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret")
 
 # --- Database Setup ---
-db_url = os.environ.get("DATABASE_URL", "sqlite:///textbox.db")
-if db_url.startswith("postgres://"):
+db_url = os.environ.get("DATABASE_URL")
+if not db_url:
+    # fallback to local SQLite for testing
+    db_url = "sqlite:///textbox.db"
+elif db_url.startswith("postgres://"):
+    # SQLAlchemy requires postgresql://, not postgres://
     db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -181,12 +187,9 @@ def toggle_follow(user_id):
 # --- Startup ---
 if __name__ == "__main__":
     with app.app_context():
-        # Create all tables if they do not exist
         try:
-            db.create_all()
-            print("✅ Database tables created or already exist.")
+            db.create_all()  # Auto-create tables
+            print("✅ Database tables created successfully")
         except Exception as e:
             print("❌ Error creating tables:", e)
     app.run(host="0.0.0.0", port=5000)
-
-
